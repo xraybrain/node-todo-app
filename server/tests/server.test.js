@@ -1,9 +1,13 @@
 const expect = require('expect');
 const request = require('supertest');
+const { ObjectID } = require('mongodb');
 const { app } = require('./../server');
 const { Todo } = require('./../models/todo');
 
-const todos = [{ text: 'First test todo' }, { text: 'Second test todo' }];
+const todos = [
+  { _id: new ObjectID(), text: 'First test todo' },
+  { _id: new ObjectID(), text: 'Second test todo' },
+];
 
 beforeEach((done) => {
   Todo.deleteMany({})
@@ -38,6 +42,30 @@ describe('GET /todos', () => {
   it('should get all todos', async () => {
     const response = await request(app).get('/todos');
     expect(response.status).toBe(200);
-    expect(response.todos.length).toBe(2);
+    expect(response.body.todos.length).toBe(2);
+  });
+});
+
+describe('GET /todos/:id', () => {
+  it('should return todo doc', async () => {
+    const response = await request(app).get(
+      `/todos/${todos[0]._id.toHexString()}`
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.todo.text).toBe(todos[0].text);
+  });
+
+  it('should return 404 if todo not found', async () => {
+    let id = new ObjectID().toHexString();
+    const response = await request(app).get(`/todos/${id}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 for non-object ids', async () => {
+    const response = await request(app).get(`/todos/1234`);
+
+    expect(response.status).toBe(404);
   });
 });
