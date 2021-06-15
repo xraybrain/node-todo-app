@@ -22,7 +22,7 @@ describe('POST /todos', () => {
     let text = 'Test todo text';
     const response = await request(app).post('/todos').send({ text });
     expect(response.status).toBe(200);
-    expect(response.body.text).toBe(text);
+    expect(response.body.todo.text).toBe(text);
     Todo.find({ text }).then((todos) => {
       expect(todos.length).toBe(1);
       expect(todos[0].text).toBe(text);
@@ -64,6 +64,33 @@ describe('GET /todos/:id', () => {
   });
 
   it('should return 404 for non-object ids', async () => {
+    const response = await request(app).get(`/todos/1234`);
+
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('DELETE /todos/:id', () => {
+  it('should remove a todo', async () => {
+    let hexId = todos[1]._id.toHexString();
+    const response = await request(app).delete(`/todos/${hexId}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.todo._id).toBe(hexId);
+
+    Todo.findById(hexId).then((todo) => {
+      return expect(todo).toBeNull();
+    });
+  });
+
+  it('should return 404 if todo not found', async () => {
+    let hexId = new ObjectID().toHexString();
+    const response = await request(app).delete(`/todos/${hexId}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('should return 404 if object id is invalid', async () => {
     const response = await request(app).get(`/todos/1234`);
 
     expect(response.status).toBe(404);
