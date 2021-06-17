@@ -204,6 +204,4 @@ describe('DELETE /users/me/token', () => {
     let user = await User.findById(users[1]._id);
     expect(user.tokens.length).toBe(0);
   });
-  it('', async () => {});
-  it('', async () => {});
 });
