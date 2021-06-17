@@ -15,7 +15,7 @@ describe('POST /todos', () => {
     const response = await request(app).post('/todos').send({ text });
     expect(response.status).toBe(200);
     expect(response.body.todo.text).toBe(text);
-    Todo.find({ text }).then((todos) => {
+    return Todo.find({ text }).then((todos) => {
       expect(todos.length).toBe(1);
       expect(todos[0].text).toBe(text);
     });
@@ -165,5 +165,31 @@ describe('POST /users/', () => {
       .send({ email, password });
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe('POST /users/login', (req, res) => {
+  it('should login user and return auth token', async () => {
+    const response = await request(app)
+      .post('/users/login')
+      .send({ email: users[1].email, password: users[1].password });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['x-auth']).toBeDefined();
+
+    let user = await User.findById(users[1]._id);
+    expect(user.tokens[1]).toHaveProperty('access', 'auth');
+    expect(user.tokens[1]).toHaveProperty('token', response.headers['x-auth']);
+  });
+  it('reject invalid login', async () => {
+    const response = await request(app)
+      .post('/users/login')
+      .send({ email: 'noexists@email.com', password: '123456' });
+
+    expect(response.status).toBe(400);
+    expect(response.headers['x-auth']).toBeUndefined();
+
+    let user = await User.findById(users[1]._id);
+    expect(user.tokens.length).toBe(1);
   });
 });
