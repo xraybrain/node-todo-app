@@ -3,24 +3,11 @@ const request = require('supertest');
 const { ObjectID } = require('mongodb');
 const { app } = require('./../server');
 const { Todo } = require('./../models/todo');
+const { populateTodos, todos, populateUsers, users } = require('./seed/seed');
+const { User } = require('../models/user');
 
-const todos = [
-  { _id: new ObjectID(), text: 'First test todo' },
-  {
-    _id: new ObjectID(),
-    text: 'Second test todo',
-    completed: true,
-    completedAt: 333,
-  },
-];
-
-beforeEach((done) => {
-  Todo.deleteMany({})
-    .then(() => {
-      return Todo.insertMany(todos);
-    })
-    .then(done());
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', () => {
   it('should create new todo', async () => {
@@ -123,5 +110,60 @@ describe('PATCH /todos/:id', () => {
     expect(response.body.todo.text).toBe(patch.text);
     expect(response.body.todo.completed).toBe(false);
     expect(response.body.todo.completedAt).toBeNull();
+  });
+});
+
+describe('GET /users/me', () => {
+  it('should return a user if authenticated', async () => {
+    const response = await request(app)
+      .get('/users/me')
+      .set('x-auth', users[0].tokens[0].token);
+
+    expect(response.status).toBe(200);
+    expect(response.body._id).toBe(users[0]._id.toHexString());
+    expect(response.body.email).toBe(users[0].email);
+  });
+  it('should return 401 if not authenticated', async () => {
+    const response = await request(app).get('/users/me');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({});
+  });
+});
+
+describe('POST /users/', () => {
+  it('should create a user', async () => {
+    var email = 'example@example.com';
+    var password = '123mnb!';
+    const response = await request(app)
+      .post('/users/')
+      .send({ email, password });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['x-auth']).toBeDefined();
+    expect(response.body.user._id).toBeDefined();
+    expect(response.body.user.email).toBeDefined();
+
+    let user = await User.findOne({ email });
+    expect(user).toBeDefined();
+    expect(user.password).not.toBe(password);
+  });
+  it('should return validation errors if request invalid', async () => {
+    var email = 'bademail.com';
+    var password = '123';
+    const response = await request(app)
+      .post('/users/')
+      .send({ email, password });
+
+    expect(response.status).toBe(400);
+  });
+  it('should not create user if email in use', async () => {
+    var email = users[0].email;
+    var password = '123good';
+    const response = await request(app)
+      .post('/users/')
+      .send({ email, password });
+
+    expect(response.status).toBe(400);
   });
 });
